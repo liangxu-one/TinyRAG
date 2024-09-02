@@ -55,6 +55,7 @@ def main(args):
     else:
         print("response: ", response, "\n")
 
+    # 对结果进行评测
     ragEvaluator = RagEvaluator()
     rag_results = {'question': [query], 
                    'answer': [response],

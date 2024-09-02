@@ -1,10 +1,27 @@
 from ragas import evaluate
 from datasets import Dataset
-from ragas.llms.prompt import Prompt
+from ragas.llms.prompt import Prompt, PromptValue
 from ragas.metrics import faithfulness, answer_relevancy, context_utilization
 from ragas.metrics._faithfulness import _statements_output_instructions, StatementsAnswers, _faithfulness_output_instructions, StatementFaithfulnessAnswers
 from ragas.metrics._answer_relevance import _output_instructions, AnswerRelevanceClassification
 from ragas.metrics._context_precision import _verification_output_instructions, ContextPrecisionVerification
+import types
+import typing as t
+
+# 自定义faithfulness使用的函数, 适应中文场景
+def _create_statements_prompt_ch(self, row: t.Dict) -> PromptValue:
+    assert self.sentence_segmenter is not None, "sentence_segmenter is not set"
+
+    text, question = row["answer"], row["question"]
+    sentences = self.sentence_segmenter.segment(text)
+    sentences = [
+        sentence for sentence in sentences if sentence.strip().endswith("。")
+    ]
+    sentences = "\n".join([f"{i}:{x}" for i, x in enumerate(sentences)])
+    prompt_value = self.statement_prompt.format(
+        question=question, answer=text, sentences=sentences
+    )
+    return prompt_value
 
 class RagEvaluator:
     def __init__(self):
@@ -104,6 +121,7 @@ class RagEvaluator:
         )
         faithfulness.statement_prompt = long_form_answer_ch
         faithfulness.nli_statements_message = nli_statements_ch
+        faithfulness._create_statements_prompt = types.MethodType(_create_statements_prompt_ch, faithfulness) 
         self.faithfulness = faithfulness
 
         # 自定义answer_relevancy使用的prompt
